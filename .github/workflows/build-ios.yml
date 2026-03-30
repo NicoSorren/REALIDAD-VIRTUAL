@@ -1,0 +1,56 @@
+name: Build iOS (IPA)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build_unity:
+    name: 1. Compilar Unity (Export a Xcode)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar Repositorio
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - name: Ejecutar motor de Unity
+        uses: game-ci/unity-builder@v4
+        env:
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+        with:
+          projectPath: SommelierAR
+          targetPlatform: iOS
+          allowDirtyBuild: true
+
+      - name: Subir proyecto temporal de Xcode
+        uses: actions/upload-artifact@v4
+        with:
+          name: XcodeProject
+          path: SommelierAR/build/iOS
+
+  build_ipa:
+    name: 2. Convertir Xcode a .IPA (Mac)
+    needs: build_unity
+    runs-on: macos-latest
+    steps:
+      - name: Descargar proyecto de Xcode
+        uses: actions/download-artifact@v4
+        with:
+          name: XcodeProject
+          path: build/iOS
+
+      - name: Compilar IPA
+        run: |
+          cd build/iOS
+          xcodebuild clean build -project Unity-iPhone.xcodeproj -scheme Unity-iPhone -configuration Release -sdk iphoneos CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO
+          
+          mkdir Payload
+          mv build/Release-iphoneos/*.app Payload/
+          zip -r SommelierAR.ipa Payload
+
+      - name: Entregar archivo IPA final
+        uses: actions/upload-artifact@v4
+        with:
+          name: SommelierAR_Aplicacion
+          path: build/iOS/SommelierAR.ipa
