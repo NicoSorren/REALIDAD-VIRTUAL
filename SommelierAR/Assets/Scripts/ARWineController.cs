@@ -1,4 +1,4 @@
-    using System.Collections.Generic;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.XR.ARFoundation;
 using UnityEngine.XR.ARSubsystems;
@@ -9,47 +9,60 @@ public class ARWineController : MonoBehaviour
 {
     [Header("AR Configuration")]
     private ARTrackedImageManager _imageManager;
-    
-    [Header("Prefabs y Modelos")]
-    [Tooltip("El nombre de la imagen de referencia en la Reference Image Library")]
-    public string targetImageName = "EtiquetaVino";
-    [Tooltip("Prefab base que contiene ambos escenarios (A y B)")]
-    public GameObject virtualBottlePrefab;
-    
-    // Instancia del objeto 3D que aparecerá anclado a la botella real
-    private GameObject _spawnedBottle;
 
-    [Header("Escenarios / Modos")]
-    public ScenarioMode currentScenario = ScenarioMode.EscenarioA_Labels;
+    [Header("Marcador - Botella Física")]
+    [Tooltip("Nombre exacto de la imagen en la Reference Image Library")]
+    public string targetRealBottle = "EtiquetaSexyFish";
+    [Tooltip("Prefab HologramaVino con los textos flotantes")]
+    public GameObject realBottlePrefab;
 
-    // Referencias a los subcontenedores u objetos gráficos de cada escenario
-    private GameObject _scenarioAContainer;
-    private GameObject _scenarioBContainer;
+    // Diccionario para gestionar las instancias activas
+    private Dictionary<string, GameObject> _spawnedInstances = new Dictionary<string, GameObject>();
 
-    public enum ScenarioMode
-    {
-        EscenarioA_Labels,
-        EscenarioB_XRay
-    }
-
-    // Estructura de datos requerida para los parámetros enológicos
+    // --- Datos del vino (editables desde el Inspector de Unity) ---
     [System.Serializable]
-    public struct EnologicalData
+    public struct WineData
     {
-        public float pH;
-        public float brixDegree;
-        public float fermentTemperature;
-        public string originHectares;
+        [Tooltip("Nombre del vino y bodega")]
+        public string nombreVino;
+        [Tooltip("Varietal, año y origen geográfico")]
+        public string varietal;
+        [Tooltip("Perfil de sabor / descripción")]
+        public string perfil;
+        [Tooltip("Sugerencia de maridaje")]
+        public string maridaje;
+        [Tooltip("Temperatura de servicio y graduación alcohólica")]
+        public string servicio;
     }
 
-    [Header("Datos Enológicos Actuales")]
-    public EnologicalData currentData = new EnologicalData
+    [Header("Datos del Vino")]
+    public WineData currentWine = new WineData
     {
-        pH = 3.5f,
-        brixDegree = 24.0f,
-        fermentTemperature = 26.5f,
-        originHectares = "Valle de Uco - Finca 1"
+        nombreVino = "Sexy Fish  ·  Norton",
+        varietal   = "Malbec 2024  ·  Mendoza, Argentina",
+        perfil     = "Frutal  ·  Equilibrado  ·  Final delicado",
+        maridaje   = "Carnes rojas  ·  Pastas  ·  Quesos",
+        servicio   = "Servir a 18 C   |   14% Alc.   |   750 ml"
     };
+
+    // --- Debug en pantalla (se puede desactivar en producción) ---
+    private string _debugLog = "Sommelier AR · Apunte a la etiqueta...";
+
+    void OnGUI()
+    {
+        GUIStyle style = new GUIStyle();
+        style.fontSize = Screen.height / 28;
+        style.normal.textColor = Color.yellow;
+        GUI.Label(new Rect(30, 120, Screen.width - 60, Screen.height - 160), _debugLog, style);
+    }
+
+    private void LogToScreen(string msg)
+    {
+        _debugLog = msg + "\n" + _debugLog;
+        if (_debugLog.Length > 600) _debugLog = _debugLog.Substring(0, 600);
+        Debug.Log("[SommelierAR] " + msg);
+    }
+    // ---------------------------------------------------------------
 
     void Awake()
     {
@@ -58,7 +71,6 @@ public class ARWineController : MonoBehaviour
 
     void OnEnable()
     {
-        // Suscribirse a los eventos de detección de imágenes
 #pragma warning disable 0618
         _imageManager.trackedImagesChanged += OnTrackedImagesChanged;
 #pragma warning restore 0618
@@ -66,7 +78,6 @@ public class ARWineController : MonoBehaviour
 
     void OnDisable()
     {
-        // Desuscribirse para evitar fugas de memoria y errores
 #pragma warning disable 0618
         _imageManager.trackedImagesChanged -= OnTrackedImagesChanged;
 #pragma warning restore 0618
@@ -74,101 +85,101 @@ public class ARWineController : MonoBehaviour
 
     private void OnTrackedImagesChanged(ARTrackedImagesChangedEventArgs eventArgs)
     {
-        // 1. Manejo de nuevas imágenes detectadas (marcador encontrado)
+        // --- Imágenes recién detectadas ---
         foreach (var trackedImage in eventArgs.added)
         {
-            if (trackedImage.referenceImage.name == targetImageName)
+            string imgName = trackedImage.referenceImage.name;
+            LogToScreen("DETECTO: [" + imgName + "]");
+
+            if (imgName == targetRealBottle && !_spawnedInstances.ContainsKey(imgName))
             {
-                // Si aún no hemos instanciado la botella virtual, lo hacemos
-                if (_spawnedBottle == null)
+                if (realBottlePrefab == null)
                 {
-                    _spawnedBottle = Instantiate(virtualBottlePrefab, trackedImage.transform.position, trackedImage.transform.rotation);
-                    _spawnedBottle.transform.parent = trackedImage.transform; // Anclar toda la geometría al marcador (iPhone pose data)
-                    
-                    // Supongamos que el prefab tiene dos hijos principales, uno para cada escenario
-                    Transform containerA = _spawnedBottle.transform.Find("ScenarioA_Labels");
-                    Transform containerB = _spawnedBottle.transform.Find("ScenarioB_XRay");
-
-                    if (containerA != null) _scenarioAContainer = containerA.gameObject;
-                    if (containerB != null) _scenarioBContainer = containerB.gameObject;
-
-                    UpdateScenarioVisuals();
-                    UpdateEnologicalLabels(currentData);
+                    LogToScreen("ERROR: realBottlePrefab no asignado en el Inspector.");
+                    continue;
                 }
+
+                var inst = Instantiate(realBottlePrefab,
+                                       trackedImage.transform.position,
+                                       trackedImage.transform.rotation);
+                inst.transform.parent = trackedImage.transform;
+                _spawnedInstances.Add(imgName, inst);
+
+                // Rellenar textos con los datos del vino y hacer fade-in
+                UpdateWineLabels(inst, currentWine);
+                StartCoroutine(FadeInLabels(inst));
+                LogToScreen("OK: Holograma anclado a la etiqueta.");
             }
         }
 
-        // 2. Manejo de imágenes actualizadas (se mueven o giran respecto a la cámara del iPhone)
+        // --- Imágenes actualizadas (seguimiento continuo) ---
         foreach (var trackedImage in eventArgs.updated)
         {
-            if (trackedImage.referenceImage.name == targetImageName && _spawnedBottle != null)
+            string imgName = trackedImage.referenceImage.name;
+            if (_spawnedInstances.TryGetValue(imgName, out GameObject inst))
             {
-                // La alineación de las posiciones AR ya está gobernada por ARFoundation.
-                // Como _spawnedBottle.transform.parent = trackedImage.transform, 
-                // mantiene estricta consistencia con la geometría del iPhone.
-                
-                // Si perdemos nivel de rastreo al ocultar el marcador, ocultamos el modelo
-                if (trackedImage.trackingState == TrackingState.Tracking || trackedImage.trackingState == TrackingState.Limited)
-                {
-                    _spawnedBottle.SetActive(true);
-                }
-                else
-                {
-                    _spawnedBottle.SetActive(false); // Ocultar si se deja de ver por completo
-                }
+                bool visible = trackedImage.trackingState == TrackingState.Tracking
+                            || trackedImage.trackingState == TrackingState.Limited;
+                inst.SetActive(visible);
             }
         }
     }
 
     /// <summary>
-    /// Cambia entre el escenario A (Datos) y B (Rayos X).
-    /// Esta función es un "listener" ideal para tu UI o el trigger que leas desde nivel hardware (Acelerómetro/Táctil).
+    /// Escribe los datos reales del vino en los TextMeshPro con formato enriquecido.
     /// </summary>
-    public void ToggleScenario()
+    private void UpdateWineLabels(GameObject instance, WineData data)
     {
-        if (currentScenario == ScenarioMode.EscenarioA_Labels)
-        {
-            currentScenario = ScenarioMode.EscenarioB_XRay;
-        }
-        else
-        {
-            currentScenario = ScenarioMode.EscenarioA_Labels;
-        }
-        
-        UpdateScenarioVisuals();
+        // Nombre: grande, negrita, dorado
+        SetText(instance, "Txt_Nombre",
+            $"<b><color=#C9A84C>{data.nombreVino}</color></b>");
+
+        // Varietal: itálica, crema
+        SetText(instance, "Txt_Varietal",
+            $"<i><color=#F5E6CC>{data.varietal}</color></i>");
+
+        // Perfil: blanco suave
+        SetText(instance, "Txt_Perfil",
+            $"<color=#FFFFFF>{data.perfil}</color>");
+
+        // Maridaje: crema con prefijo
+        SetText(instance, "Txt_Maridaje",
+            $"<color=#F5E6CC><b>Maridaje:</b>  {data.maridaje}</color>");
+
+        // Servicio: gris cálido, más pequeño
+        SetText(instance, "Txt_Servicio",
+            $"<size=80%><color=#E0D5C5>{data.servicio}</color></size>");
     }
 
-    private void UpdateScenarioVisuals()
+    private void SetText(GameObject root, string childName, string content)
     {
-        if (_scenarioAContainer == null || _scenarioBContainer == null) 
-        {
-            Debug.LogWarning("No se encontraron los contenedores de los escenarios en el prefab.");
-            return;
-        }
-
-        switch (currentScenario)
-        {
-            case ScenarioMode.EscenarioA_Labels:
-                _scenarioAContainer.SetActive(true);
-                _scenarioBContainer.SetActive(false);
-                break;
-            case ScenarioMode.EscenarioB_XRay:
-                _scenarioAContainer.SetActive(false);
-                _scenarioBContainer.SetActive(true);
-                break;
-        }
+        Transform t = root.transform.Find(childName);
+        if (t == null) { LogToScreen("WARN: no encuentro " + childName); return; }
+        var tmp = t.GetComponent<TMPro.TextMeshPro>();
+        if (tmp != null) tmp.text = content;
     }
 
     /// <summary>
-    /// Actualiza los textos / primitivas 3D del Escenario A con los datos enológicos.
+    /// Aparición suave de los textos en 1.5 segundos al detectar la etiqueta.
     /// </summary>
-    public void UpdateEnologicalLabels(EnologicalData data)
+    private System.Collections.IEnumerator FadeInLabels(GameObject instance)
     {
-        // Aquí debes enlazar los atributos de EnologicalData con tus componentes de UI o TextMeshPro 3D.
-        // Ej:
-        // var textPh = _scenarioAContainer.transform.Find("Label_pH").GetComponent<TMPro.TextMeshPro>();
-        // textPh.text = "pH: " + data.pH.ToString("F2");
-        
-        Debug.Log($"[Sommelier AR] Actualizando datos: pH={data.pH}, Brix={data.brixDegree}, Temp={data.fermentTemperature}°C");
+        var tmps = instance.GetComponentsInChildren<TMPro.TextMeshPro>();
+
+        // Comenzar todos en transparente
+        foreach (var tmp in tmps)
+            tmp.color = new Color(tmp.color.r, tmp.color.g, tmp.color.b, 0f);
+
+        float duration = 1.5f;
+        float elapsed  = 0f;
+
+        while (elapsed < duration)
+        {
+            elapsed += Time.deltaTime;
+            float alpha = Mathf.Clamp01(elapsed / duration);
+            foreach (var tmp in tmps)
+                tmp.color = new Color(tmp.color.r, tmp.color.g, tmp.color.b, alpha);
+            yield return null;
+        }
     }
 }

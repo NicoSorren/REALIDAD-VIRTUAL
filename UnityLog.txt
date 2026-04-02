@@ -1,0 +1,18 @@
+[Licensing::Module] Trying to connect to existing licensing client channel...
+[Licensing::IpcConnector] Successfully connected to the License Client on channel: "LicenseClient-nsorr" at "2026-03-30T18:07:39.6947092Z"
+[Licensing::Client] Error: Code 10 while verifying Licensing Client signature (process Id: 22980, path: "C:/Program Files/Unity Hub/UnityLicensingClient_V1/Unity.Licensing.Client.exe")
+[Licensing::Module] Error: LicensingClient has failed validation; ignoring
+[Licensing::Client] Handshaking with LicensingClient:
+  Version:                 1.17.4+4293ba1
+  Session Id:              e4541fc8ae674683899aa8cedc3b6966
+  Correlation Id:          998c2a006050f2ddcc77cf8860a0841d
+  External correlation Id: 4153278613161862404
+  Machine Id:              iB3JycjLNXgSKOKsF551irH8fTQ=
+[Licensing::Module] Successfully connected to LicensingClient on channel: "LicenseClient-nsorr" (connect: 0.00s, validation: 0.03s, handshake: 0.14s)
+[Licensing::IpcConnector] Successfully connected to the License Notification on channel: "LicenseClient-nsorr-notifications" at "2026-03-30T18:07:39.8668063Z"
+[Licensing::Module] Error: Access token is unavailable; failed to update
+[Licensing::Client] Successfully updated license
+[Licensing::Module] Generating manual activation license file: C:\Users\nsorr\REALIDAD VIRTUAL/Unity_v6000.0.25f1.alf
+[Licensing::Client] Successfully processed ALF generation request: C:\Users\nsorr\REALIDAD VIRTUAL\Unity_v6000.0.25f1.alf
+[Licensing::Module] Manual activation license file successfully saved.
+Exiting without the bug reporter. Application will terminate with return code 0
