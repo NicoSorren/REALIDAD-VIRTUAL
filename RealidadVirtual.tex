@@ -1,0 +1,287 @@
+\documentclass[11pt,a4paper]{article}
+
+% --- PAQUETES ---
+\usepackage[utf8]{inputenc}
+\usepackage[spanish]{babel}
+\usepackage{graphicx}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{hyperref}
+\usepackage{tabularx}
+\usepackage{float}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{titlesec}
+\usepackage{fancyhdr}
+
+% --- CONFIGURACIÓN DE COLORES PARA EL CÓDIGO ---
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+
+\lstdefinestyle{mystyle}{
+    backgroundcolor=\color{backcolour},   
+    commentstyle=\color{codegreen},
+    keywordstyle=\color{magenta},
+    numberstyle=\tiny\color{codegray},
+    stringstyle=\color{codepurple},
+    basicstyle=\ttfamily\footnotesize,
+    breakatwhitespace=false,         
+    breaklines=true,                 
+    captionpos=b,                    
+    keepspaces=true,                 
+    numbers=left,                    
+    numbersep=5pt,                  
+    showspaces=false,                
+    showstringspaces=false,
+    showtabs=false,                  
+    tabsize=2
+}
+\lstset{style=mystyle}
+
+% --- PORTADA ---
+\title{
+    \vspace{-2cm}
+    \includegraphics[width=0.4\textwidth]{imagenes/logo_uncuyo.png} % [NOTA] Sube el logo de la facultad
+    \vspace{1cm}\\
+    \large Universidad Nacional de Cuyo\\
+    Facultad de Ingeniería\\
+    Ingeniería en Mecatrónica\\[1cm]
+    \Large Trabajo Práctico Final: Realidad Virtual\\[0.5cm]
+    \Huge \textbf{Desarrollo de un Sommelier Virtual mediante Realidad Aumentada (AR)}
+}
+
+\author{
+    \textbf{Alumno:} Nicolás Sorrentino\\[0.5cm]
+    \textbf{Profesores:}\\ Javier Rosenstein\\ Carlos Tomba
+}
+\date{\vspace{1cm}Mendoza, Argentina \\ \today}
+
+% --- INICIO DEL DOCUMENTO ---
+\begin{document}
+
+\maketitle
+\thispagestyle{empty}
+\newpage
+
+\tableofcontents
+\newpage
+
+% --- RESUMEN ---
+\section*{Resumen}
+\addcontentsline{toc}{section}{Resumen}
+El presente trabajo describe el desarrollo e implementación del proyecto ``SommelierAR'', una aplicación móvil de Realidad Aumentada (AR) diseñada para enriquecer la experiencia de cata y consumo de vinos. Utilizando el motor gráfico Unity y el framework AR Foundation, la aplicación es capaz de reconocer imágenes del mundo físico (como cartas de restaurantes o etiquetas de botellas de vino) y superponer objetos tridimensionales e información holográfica detallada sobre el producto. El proyecto aborda la configuración del entorno de AR, el seguimiento de imágenes (Image Tracking), la creación de materiales interactivos utilizando Universal Render Pipeline (URP) y el desarrollo de una interfaz de usuario paginada y dinámica.
+
+% --- INTRODUCCIÓN ---
+\section{Introducción}
+La Realidad Aumentada ha demostrado ser una herramienta capaz de conectar el mundo físico con contenido digital interactivo. En el rubro vitivinícola, el consumidor frecuentemente requiere información especializada (notas de cata, maridaje, terroir y proceso de elaboración) que no puede ser totalmente volcada en una etiqueta impresa debido a limitaciones de espacio.
+
+El objetivo de este proyecto  crear un asistente virtual interactivo (Sommelier Virtual) que permita democratizar y facilitar el acceso a la información enológica utilizando dispositivos móviles estándar Android. 
+
+% --- MARCO TEÓRICO Y HERRAMIENTAS ---
+\section{Herramientas Utilizadas}
+Para el desarrollo de esta aplicación se seleccionaron herramientas que son un estándar en la industria inmersiva actual:
+\begin{itemize}
+    \item \textbf{Unity 6:} Motor gráfico utilizado como entorno de desarrollo principal para ensamblar escenas, modelos 3D e interfaces de usuario.
+    \item \textbf{AR Foundation:} Framework de Unity que permite desarrollar aplicaciones multiplataforma abstrayendo las particularidades de ARCore (Android) y ARKit (iOS).
+    \item \textbf{Universal Render Pipeline (URP):} Sistema de renderizado de Unity para gestionar gráficos optimizados en dispositivos móviles.
+    \item \textbf{TextMeshPro (TMP):} Herramienta avanzada de renderizado de texto utilizada para lograr tipografías nítidas y la manipulación del \textit{Rich Text}.
+\end{itemize}
+
+% --- DESARROLLO E IMPLEMENTACIÓN ---
+\section{Desarrollo e Implementación}
+
+\subsection{Estructura de la Escena (Jerarquía)}
+El proyecto se estructuró a partir de una escena principal limpia orientada a Realidad Aumentada. En el panel de Jerarquía (Hierarchy) se establecieron los \textit{GameObjects} fundamentales que actúan como el núcleo de la experiencia inmersiva. 
+
+\begin{figure}[H]
+    \centering
+    % [NOTA] Sube la Imagen 1: "hierarchy_scene.png"
+    \includegraphics[width=0.45\textwidth]{imagenes/hierarchy_scene.png} 
+    \caption{Panel de Jerarquía mostrando los objetos base de la escena AR.}
+\end{figure}
+
+Como se observa (Fig. 1), la escena prescinde de una cámara tradicional de Unity y en su lugar confía en:
+\begin{itemize}
+    \item \textbf{AR Session:} El objeto encargado de controlar el ciclo de vida de la experiencia de Realidad Aumentada (habilitar o deshabilitar todo el sistema AR a nivel de hardware).
+    \item \textbf{XR Origin:} El objeto que representa al usuario en el espacio 3D, uniendo las coordenadas del mundo físico con las coordenadas virtuales del motor gráfico.
+\end{itemize}
+
+\subsection{Configuración de Componentes AR (Inspector)}
+Para el correcto funcionamiento de las pasarelas entre el software y la cámara del dispositivo móvil, se debieron configurar meticulosamente los componentes (\textit{scripts} predeterminados) alojados en cada GameObject principal.
+
+\subsubsection{Gestión de la Sesión (AR Session)}
+Al seleccionar el objeto \texttt{AR Session}, en el panel Inspector se configuraron dos scripts vitales proporcionados por el paquete de AR Foundation.
+
+\begin{figure}[H]
+    \centering
+    % [NOTA] Sube la Imagen 2: "inspector_arsession.png"
+    \includegraphics[width=0.45\textwidth]{imagenes/inspector_arsession.png} 
+    \caption{Componentes AR Session y AR Input Manager en el Inspector.}
+\end{figure}
+
+\begin{itemize}
+    \item \textbf{AR Session (Script):} Mantiene la tasa de refresco (Frame Rate) sincronizada con la cámara del dispositivo nativo, evitando saltos visuales o desfases computacionales.
+    \item \textbf{AR Input Manager:} El responsable de canalizar todos los datos sensoriales del teléfono (como giroscopios, acelerómetros y posición de dispositivo) hacia el motor de físicas y la cámara de Unity.
+\end{itemize}
+
+\subsubsection{Origen y Tracking de Imágenes (XR Origin)}
+Este objeto es el corazón computacional de la escena. Modificando sus propiedades en el Inspector, se configuró el punto de vista del usuario (\texttt{Camera Offset}) para coincidir de manera precisa con el centro del mundo tridimensional.
+
+\begin{figure}[H]
+    \centering
+    % [NOTA] Sube la Imagen 3: "inspector_xrorigin.png"
+    \includegraphics[width=0.45\textwidth]{imagenes/inspector_xrorigin.png} 
+    \caption{Componentes XR Origin y AR Tracked Image Manager.}
+\end{figure}
+
+El componente más crítico aquí es el \textbf{AR Tracked Image Manager}. Este script es el encargado exclusivo del reconocimiento visual de los marcadores físicos. Se le asignó:
+\begin{itemize}
+    \item \textbf{Serialized Library:} Se le proveyó la \texttt{ReferenceImageLibrary}, una base de datos local que contiene las imágenes de las etiquetas de los vinos procesadas con algoritmos de extracción de puntos de contraste.
+    \item \textbf{Max Number Of Moving Images (2):} Se limitó a 2 la cantidad máxima de imágenes que la aplicación rastreará en tiempo real, optimizando el uso de CPU/GPU del smartphone.
+\end{itemize}
+
+\subsubsection{Controlador Lógico Customizado (AR Wine Controller)}
+Para dotar a la aplicación de su lógica de negocio particular, se desarrolló un script propio denominado \texttt{ARWineController.cs}, el cual se acopla dinámicamente al sistema de Tracking.
+
+\begin{figure}[H]
+    \centering
+    % [NOTA] Sube la Imagen 4: "inspector_winecontroller.png"
+    \includegraphics[width=0.45\textwidth]{imagenes/inspector_winecontroller.png} 
+    \caption{Variables públicas del script ARWineController en el Inspector.}
+\end{figure}
+
+Mediante el Inspector, se vincularon las variables públicas del Script con los objetos del sistema (Fig. 4). Esto permite inyectar dependencias visuales sin recompliar el código, definiendo dos escenarios funcionales:
+\begin{itemize}
+    \item \textbf{Escenario 1 (Target Menu):} Se asocia el string ``EtiquetaVino'' con el holograma completo modelado en 3D (`HologramaBotellaMenu`).
+    \item \textbf{Escenario 2 (Target Real Bottle):} Se asocia el string ``EtiquetaSexyFish'' (la botella real de Norton) con el holograma de los paneles flotantes que envuelven la botella física (`HologramaVino`).
+\end{itemize}
+
+\subsection{Lógica de Renderizado y Escenarios de Detección}
+La aplicación fue diseñada con una lógica bifásica respaldada por los objetos recién mencionados. El código inyecta el prefab correspondiente dependiendo de lo que reciba la cámara.
+
+A continuación, se detalla la porción del código \texttt{OnTrackedImagesChanged} encargada de manejar el evento de aparición (Tracking). Aquí la lógica discrimina el marcador detectado y carga en la memoria el holograma apropiado en ese mismo instante temporal:
+
+\begin{lstlisting}[language={[CSharp]C}, caption=Implementación de la detección de marcadores e instanciamiento.]
+private void OnTrackedImagesChanged(ARTrackedImagesChangedEventArgs eventArgs)
+{
+    foreach (var trackedImage in eventArgs.added)
+    {
+        string imgName = trackedImage.referenceImage.name;
+
+        // Escenario 1: Deteccion de la carta / menu
+        if (imgName == targetMenu && !_spawnedInstances.ContainsKey(imgName))
+        {
+            var inst = Instantiate(menuPrefab, trackedImage.transform.position, trackedImage.transform.rotation);
+            inst.transform.parent = trackedImage.transform;
+            _spawnedInstances.Add(imgName, inst);
+            
+            _currentPage = 0;
+            ApplyPage(inst, pagesMenu, _currentPage);
+            StartCoroutine(FadeAllTo(inst, 0f, 1f, 1.5f)); // Animacion de entrada
+        }
+        // ... (Identica logica para Escenario 2)
+    }
+}
+\end{lstlisting}
+
+\subsection{Estructura Interna de los Hologramas (Prefabs)}
+Para asegurar encapsulamiento y un diseño orientado a componentes reusables, los elementos visuales se agruparon creando ``Prefabs''. Estos prefabs son la plantilla exacta que el código discutido en la sección anterior instancia al detectar los marcadores.
+
+El diseño modular consideró las particularidades visuales de cada uno de los dos escenarios:
+
+\begin{figure}[H]
+    \centering
+    % [NOTA] Sube la imagen del escenario 1 (Unity Scene View)
+    \includegraphics[width=0.9\textwidth]{imagenes/unity_botella_3d.png}
+    \caption{Vista de previsualización del HologramaBotellaMenu completo, instanciado en el Escenario 1.}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    % [NOTA] Sube la imagen de la Jerarquía del primer Prefab
+    \includegraphics[width=0.9\textwidth]{imagenes/prefab_hierarchy_menu.png}
+    \caption{Árbol de componentes del HologramaBotellaMenu.}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    % [NOTA] Sube la imagen del escenario 2 (Unity Scene View)
+    \includegraphics[width=0.9\textwidth]{imagenes/unity_ui_texto.png}
+    \caption{Vista de previsualización de la UI flotante, instanciada sola en el Escenario 2.}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    % [NOTA] Sube la imagen de la Jerarquía del segundo Prefab
+    \includegraphics[width=0.9\textwidth]{imagenes/prefab_hierarchy_vino.png}
+    \caption{Árbol de componentes del HologramaVino (sin el modelo 3D).}
+\end{figure}
+
+Analizando el Render general y el árbol de componentes (hijos) de estos Prefabs, podemos notar su modularidad:
+\begin{itemize}
+    \item \textbf{HologramaBotellaMenu (Figuras 5 y 6):} Diseñado para el Escenario 1 (cuando el usuario escanea un marcador plano como un menú). Este objeto raíz incluye todos los textos informativos (\texttt{Txt\_Servicio}, \texttt{Txt\_Varietal}, etc.), el panel del mapa (\texttt{Panel\_Mapa}), y además, un modelo físico 3D bautizado como \texttt{Wine Bottle} que reemplaza virtualmente la botella real que el usuario no tiene en la mesa.
+    \item \textbf{HologramaVino (Figuras 7 y 8):} Diseñado para el Escenario 2 (cuando el usuario escanea una botella real sobre la mesa). Posee exactamente la misma estructura base de la interfaz (los mismos \texttt{Txt\_...}), pero carece del objeto \texttt{Wine Bottle}. Esto permite inyectar una UI idéntica y consistente que envuelve de forma flotante a la botella física sin taparla.
+    \item \textbf{TMP SubMesh:} Como se observa al desplegar el objeto padre \texttt{Txt\_Perfil} (Fig. 8), la herramienta \textit{TextMeshPro} genera automáticamente sub-mallas para renderizar materiales y fuentes avanzadas (como \textit{PlayfairDisplay}), logrando una extrema nitidez para su correcta lectura tridimensional.
+    \item \textbf{Gestión de Estados (Panel\_Mapa):} Es destacable observar en la Jerarquía que el objeto \texttt{Panel\_Mapa} aparece atenuado (desactivado por defecto). Esto se debe a una decisión de diseño ligada al script \texttt{ARWineController}, el cual activa este panel exclusivamente de forma dinámica a través del código (\textit{Seteando pageIndex == 1}) al ingresar a la página de ``El Terroir'', manteniéndolo invisible en las demás fases para conservar la legibilidad.
+\end{itemize}
+
+\subsection{Interfaz de Usuario: Arquitectura \textit{Data-Driven} y Paginación}
+Es importante destacar una decisión arquitectónica clave en el diseño de los Prefabs: \textbf{la información enológica no se escribió de forma estática en el Inspector de Unity}. 
+
+En su lugar, la interfaz fue construida como una plantilla vacía (arquitectura \textit{Data-Driven}) que se hidrata dinámicamente en tiempo de ejecución. El script \texttt{ARWineController} inyecta el contenido formateado y las etiquetas HTML en los componentes de texto directamente desde sus propias estructuras de datos (las matrices de \texttt{WinePage}). 
+Esta abstracción fue implementada con un objetivo claro a futuro: escalar el proyecto permitiendo que la aplicación se conecte a una \textbf{Base de Datos externa o API REST}. De este modo, se vuelve inmensamente más eficiente gestionar cientos de vinos distintos sin tener que diseñar manualmente textos flotantes para cada botella ni recompilar el proyecto por cada nueva actualización de nota de cata.
+
+Para no agobiar visualmente al usuario y manejar toda esta información de forma ergonómica en el limitado espacio tridimensional de la cámara del móvil, se diseñó un sistema de \textbf{paginación dinámica de 4 fases}.
+Tocando la pantalla, un evento avanza el índice y cambia los textos leídos de la estructura inyectándolos en la escena:
+\begin{itemize}
+    \item Datos Generales (Varietal, Servicio, Maridaje sugerido).
+    \item El Terroir (que incluye un componente extra: un mapa dinámico del viñedo en la zona de Mendoza).
+    \item Proceso de Elaboración.
+    \item Notas de cata diseñadas por el Sommelier.
+\end{itemize}
+
+El cambio de páginas está estructurado mediante una corrutina que implementa efectos visuales (\textit{Fade in / Fade out}), ofreciendo una experiencia integrada de alta calidad de lectura (\textit{Rich Text} mediante TextMeshPro):
+
+\begin{lstlisting}[language={[CSharp]C}, caption=Corrutina para transiciones fluidas de las páginas de datos.]
+private IEnumerator ChangePage()
+{
+    _isAnimating = true;
+
+    // Fade out de la pagina actual
+    foreach (var kvp in _spawnedInstances)
+        if (kvp.Value.activeSelf) yield return FadeAllTo(kvp.Value, 1f, 0f, 0.35f);
+
+    _currentPage++;
+
+    // Actualizacion del contenido segun listado de structs (pagesMenu / pagesRealBottle)
+    // ...
+
+    // Fade in hacia la nueva informacion
+    foreach (var kvp in _spawnedInstances)
+        if (kvp.Value.activeSelf) yield return FadeAllTo(kvp.Value, 0f, 1f, 0.8f);
+
+    _isAnimating = false;
+}
+\end{lstlisting}
+
+% --- RESULTADOS Y CONCLUSIONES ---
+\section{Resultados y Pruebas}
+La exportación se realizó para la plataforma Android garantizando la correcta ejecución nativa en dispositivos compatibles con ARCore.
+Durante las pruebas físicas se comprobó que el Tracking \textit{Image Target} es robusto, siempre que exista un correcto ratio de contraste en las etiquetas y una iluminación decente, logrando que los assets en 3D permanezcan firmes (sin \textit{jittering} o inestabilidades severas).
+
+\begin{figure}[H]
+    \centering
+    % [NOTA] Sube capturas reales tomadas desde el celular
+    \includegraphics[width=0.45\textwidth]{imagenes/app_menu_ar.jpeg}
+    \hfill
+    \includegraphics[width=0.45\textwidth]{imagenes/app_botella_ar.jpeg}
+    \caption{Capturas del prototipo funcionando en un entorno real. (Dispositivo Android).}
+\end{figure}
+
+\section{Conclusión}
+El desarrollo del Sommelier Virtual AR cumplió con éxito el planteamiento inicial de la asignatura, permitiendo combinar tecnologías de mapeo referencial con lógica de programación eficiente en C\#.
+Las aplicaciones de Realidad Aumentada presentan un gran potencial para sectores tradicionales como la viticultura, agregando un considerable valor añadido a sus productos. 
+A futuro, este tipo de sistema podría integrarse en APIs (\textit{Application Programming Interfaces}) para extraer datos de vinos en tiempo real desde Internet.
+
+\end{document}

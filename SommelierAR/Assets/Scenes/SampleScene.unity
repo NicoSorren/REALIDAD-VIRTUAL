@@ -271,14 +271,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ccdb52ca4b636b0499c5e8481cedf685, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  targetRealBottle: EtiquetaSexyFish
+  targetMenu: EtiquetaVino
+  menuPrefab: {fileID: 7502284222928202078, guid: bc373eb9d0cab854894a92a99a1a1928, type: 3}
+  targetRealBottle: EtiquetaVinoTinto
   realBottlePrefab: {fileID: 7502284222928202078, guid: ce271ae2456bcef4bbe0e9e3ca1618e9, type: 3}
-  currentWine:
-    nombreVino: "Sexy Fish \xB7 Norton"
-    varietal: "Malbec 2024 \xB7 Mendoza"
-    perfil: "Frutal  \xB7  Equilibrado  \xB7  Final delicado"
-    maridaje: "Carnes rojas \xB7 Pastas \xB7 Quesos"
-    servicio: Servir a 18 C  |  14% Alc.
+  pagesMenu: []
+  pagesRealBottle: []
 --- !u!114 &629907312
 MonoBehaviour:
   m_ObjectHideFlags: 0
